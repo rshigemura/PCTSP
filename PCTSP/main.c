@@ -184,52 +184,57 @@ int main(int argc, const char * argv[]) {
 	le_penalidades(penalidades, n_vertices);
 	le_matriz_distancias(matriz_distancias, n_vertices);
 	
-	printf("\nPenalidades:");
-	imprime_vetor(penalidades, n_vertices);
-	printf("\nPremios:");
-	imprime_vetor(premios, n_vertices);
-	
 	int solucao[n_vertices], tamanho_solucao = 0, custo_solucao = INF, alpha, candidato_sorteado;
 	int* vertices_na_solucao = NULL;
 	vertices_na_solucao = zeros(vertices_na_solucao, n_vertices);
 	
 	adiciona_vertice_solucao(solucao, vertices_na_solucao, &tamanho_solucao, 0);
 	
-	int custo_candidatos[n_vertices];
-	int solucao_temp[n_vertices], tamanho_solucao_temp, *vertices_na_solucao_temp = NULL;
-	vertices_na_solucao_temp = zeros(vertices_na_solucao_temp, n_vertices);
-	for (i=0; i<n_vertices; i++) {
-		if (!vertices_na_solucao[i]) {
-			tamanho_solucao_temp = tamanho_solucao;
-			memcpy(solucao_temp, solucao, n_vertices*sizeof(int));
-			adiciona_vertice_solucao(solucao_temp, vertices_na_solucao_temp, &tamanho_solucao_temp, i);
-			custo_candidatos[i] = calcula_custo_solucao(solucao_temp, tamanho_solucao_temp, n_vertices, premios, penalidades, matriz_distancias);
-		} else {
-			custo_candidatos[i] = -1;
+	while (tamanho_solucao < n_vertices) {
+		
+		int custo_candidatos[n_vertices];
+		int solucao_temp[n_vertices], tamanho_solucao_temp, *vertices_na_solucao_temp = NULL;
+		vertices_na_solucao_temp = zeros(vertices_na_solucao_temp, n_vertices);
+		for (i=0; i<n_vertices; i++) {
+			if (!vertices_na_solucao[i]) {
+				tamanho_solucao_temp = tamanho_solucao;
+				memcpy(solucao_temp, solucao, n_vertices*sizeof(int));
+				adiciona_vertice_solucao(solucao_temp, vertices_na_solucao_temp, &tamanho_solucao_temp, i);
+				custo_candidatos[i] = calcula_custo_solucao(solucao_temp, tamanho_solucao_temp, n_vertices, premios, penalidades, matriz_distancias);
+			} else {
+				custo_candidatos[i] = -1;
+			}
 		}
+		
+		for (i=0; i<n_vertices; i++) {
+			printf("cand %d: %d\n", i, custo_candidatos[i]);
+		}
+		
+		alpha = reativo();
+		
+		candidato_sorteado = sorteia_candidato(custo_candidatos, alpha, n_vertices);
+		
+		adiciona_vertice_solucao(solucao, vertices_na_solucao, &tamanho_solucao, candidato_sorteado);
+		custo_solucao = calcula_custo_solucao(solucao, tamanho_solucao, n_vertices, premios, penalidades, matriz_distancias);
+		
+		free(vertices_na_solucao_temp);
+		
 	}
 	
-	for (i=0; i<n_vertices; i++) {
-		printf("cand %d: %d\n", i, custo_candidatos[i]);
-	}
+	printf("\nSOLUCAO:\n");
+	imprime_vetor(solucao, n_vertices);
 	
-	alpha = reativo();
+	printf("\nCUSTO: %d\n", custo_solucao);
 	
-	candidato_sorteado = sorteia_candidato(custo_candidatos, alpha, n_vertices);
-	
-	adiciona_vertice_solucao(solucao, vertices_na_solucao_temp, &tamanho_solucao, candidato_sorteado);
-	custo_solucao = calcula_custo_solucao(solucao, tamanho_solucao, n_vertices, premios, penalidades, matriz_distancias);
-	
-	printf("CUSTO: %d\n", custo_solucao);
 	
 	//liberando matriz de distancias da memória
 	for (i=0; i<n_vertices; i++) {
 		free(matriz_distancias[i]);
 	}
+	
 	free(matriz_distancias);
 	
 	free(vertices_na_solucao);
-	free(vertices_na_solucao_temp);
 
     return 0;
 }
