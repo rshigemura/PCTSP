@@ -13,13 +13,13 @@
 
 #define INF 9999999
 #define PRESENTE 1
-#define ALPHA 0.3
+#define ALPHA 0.2
 
 void inicia_funcaoaleatoria(void)
 {
 	struct timeb tmb;
 	ftime(&tmb);
-	srand(tmb.time*1000 + tmb.millitm);
+	srand((int)tmb.time*1000 + tmb.millitm);
 }
 
 void le_premios(int* premios, int n_vertices){
@@ -108,10 +108,11 @@ int calcula_custo_solucao(int* solucao, int tamanho_solucao, int n_vertices, int
 			custo += penalidades[i];
 		}
 	}
+	
 	//somatório custo deslocamentos
 	if (tamanho_solucao > 1) {
 		for (i=0; i<tamanho_solucao -1; i++) {
-			custo += matriz_distancias[i][i+1];
+			custo += matriz_distancias[solucao[i]][solucao[i+1]];
 		}
 	}
 	
@@ -151,7 +152,7 @@ int sorteia_candidato(int* custo_candidatos, float alpha, int n_vertices){
 		if (custo_candidatos[i] == -1)
 			continue;
 		
-		if (custo_candidatos[i] <= min + alpha*(max - min)) {
+		if (custo_candidatos[i] <= (min + alpha*(max - min))) {
 			printf("\ncandidato %d entrou na LRC\n", i);
 			lrc[tam_lrc] = i;
 			tam_lrc++;
@@ -169,7 +170,7 @@ float reativo(){ //FIXME grasp reativo aqui
 }
 
 int main(int argc, const char * argv[]) {
-	int i, j;
+	int i;
     int n_vertices = atoi(argv[1]);
     int premios[n_vertices];
 	int penalidades[n_vertices];
@@ -184,12 +185,14 @@ int main(int argc, const char * argv[]) {
 	le_penalidades(penalidades, n_vertices);
 	le_matriz_distancias(matriz_distancias, n_vertices);
 	
-	int solucao[n_vertices], tamanho_solucao = 0, custo_solucao = INF, alpha, candidato_sorteado;
+	int solucao[n_vertices], tamanho_solucao = 0, custo_solucao = INF, candidato_sorteado;
+	float alpha;
 	int* vertices_na_solucao = NULL;
 	vertices_na_solucao = zeros(vertices_na_solucao, n_vertices);
 	
 	adiciona_vertice_solucao(solucao, vertices_na_solucao, &tamanho_solucao, 0);
 	
+	//construção
 	while (tamanho_solucao < n_vertices) {
 		
 		int custo_candidatos[n_vertices];
@@ -220,6 +223,9 @@ int main(int argc, const char * argv[]) {
 		free(vertices_na_solucao_temp);
 		
 	}
+	//fim-construção
+	
+	//VNS
 	
 	printf("\nSOLUCAO:\n");
 	imprime_vetor(solucao, n_vertices);
