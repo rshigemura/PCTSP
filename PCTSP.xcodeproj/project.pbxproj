@@ -24,7 +24,8 @@
 
 /* Begin PBXFileReference section */
 		EF90DAF91C2284CC00272492 /* PCTSP */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = PCTSP; sourceTree = BUILT_PRODUCTS_DIR; };
-		EF90DAFC1C2284CC00272492 /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
+		EF90DAFC1C2284CC00272492 /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = main.c; path = PCTSP/main.c; sourceTree = SOURCE_ROOT; };
+		EF90DB071C2289EB00272492 /* instancias */ = {isa = PBXFileReference; lastKnownFileType = folder; path = instancias; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -45,6 +46,7 @@
 				EF90DAFA1C2284CC00272492 /* Products */,
 			);
 			sourceTree = "<group>";
+			usesTabs = 1;
 		};
 		EF90DAFA1C2284CC00272492 /* Products */ = {
 			isa = PBXGroup;
@@ -57,6 +59,7 @@
 		EF90DAFB1C2284CC00272492 /* PCTSP */ = {
 			isa = PBXGroup;
 			children = (
+				EF90DB071C2289EB00272492 /* instancias */,
 				EF90DAFC1C2284CC00272492 /* main.c */,
 			);
 			path = PCTSP;
@@ -205,6 +208,7 @@
 		EF90DB011C2284CC00272492 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				MACOSX_DEPLOYMENT_TARGET = "";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -212,6 +216,7 @@
 		EF90DB021C2284CC00272492 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				MACOSX_DEPLOYMENT_TARGET = "";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -235,6 +240,7 @@
 				EF90DB021C2284CC00272492 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

@@ -9,9 +9,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include<sys/timeb.h>
 
 #define INF 9999999
 #define PRESENTE 1
+#define ALPHA 0.3
+
+void inicia_funcaoaleatoria(void)
+{
+	struct timeb tmb;
+	ftime(&tmb);
+	srand(tmb.time*1000 + tmb.millitm);
+}
 
 void le_premios(int* premios, int n_vertices){
 	int i;
@@ -120,6 +129,45 @@ void imprime_vetor(int* vetor, int tamanho){
 	printf("\n");
 }
 
+int sorteia_candidato(int* custo_candidatos, float alpha, int n_vertices){
+	int i;
+	int lrc[n_vertices], tam_lrc = 0, min = INF, max = 0;
+	
+	for (i=0; i<n_vertices; i++) {
+		if (custo_candidatos[i] == -1)
+			continue;
+		
+		if (custo_candidatos[i] < min) {
+			min = custo_candidatos[i];
+		}
+		if (custo_candidatos[i] > max) {
+			max = custo_candidatos[i];
+		}
+	}
+	
+	printf("\n min: %d, max: %d\n", min, max);
+	
+	for (i=0; i<n_vertices; i++) {
+		if (custo_candidatos[i] == -1)
+			continue;
+		
+		if (custo_candidatos[i] <= min + alpha*(max - min)) {
+			printf("\ncandidato %d entrou na LRC\n", i);
+			lrc[tam_lrc] = i;
+			tam_lrc++;
+		}
+	}
+	
+	int sorteado = lrc[rand()%tam_lrc];
+	
+	printf("\nSORTEADO: %d\n", sorteado);
+	return sorteado;
+}
+
+float reativo(){ //FIXME grasp reativo aqui
+	return ALPHA;
+}
+
 int main(int argc, const char * argv[]) {
 	int i, j;
     int n_vertices = atoi(argv[1]);
@@ -130,6 +178,8 @@ int main(int argc, const char * argv[]) {
 		matriz_distancias[i] = (int*) malloc(n_vertices * sizeof(int));
 	}
 	
+	inicia_funcaoaleatoria();
+	
 	le_premios(premios, n_vertices);
 	le_penalidades(penalidades, n_vertices);
 	le_matriz_distancias(matriz_distancias, n_vertices);
@@ -139,7 +189,7 @@ int main(int argc, const char * argv[]) {
 	printf("\nPremios:");
 	imprime_vetor(premios, n_vertices);
 	
-	int solucao[n_vertices], tamanho_solucao = 0, custo_solucao = INF;
+	int solucao[n_vertices], tamanho_solucao = 0, custo_solucao = INF, alpha, candidato_sorteado;
 	int* vertices_na_solucao = NULL;
 	vertices_na_solucao = zeros(vertices_na_solucao, n_vertices);
 	
@@ -163,6 +213,11 @@ int main(int argc, const char * argv[]) {
 		printf("cand %d: %d\n", i, custo_candidatos[i]);
 	}
 	
+	alpha = reativo();
+	
+	candidato_sorteado = sorteia_candidato(custo_candidatos, alpha, n_vertices);
+	
+	adiciona_vertice_solucao(solucao, vertices_na_solucao_temp, &tamanho_solucao, candidato_sorteado);
 	custo_solucao = calcula_custo_solucao(solucao, tamanho_solucao, n_vertices, premios, penalidades, matriz_distancias);
 	
 	printf("CUSTO: %d\n", custo_solucao);

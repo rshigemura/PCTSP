@@ -1,1 +1,2 @@
-*.xcodeproj*
+PCTSP.xcodeproj/*
+PCTSP.xcodeproj/project.pbxproj
