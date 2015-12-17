@@ -7,9 +7,174 @@
 //
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define INF 9999999
+#define PRESENTE 1
+
+void le_premios(int* premios, int n_vertices){
+	int i;
+	FILE *instancia;
+	instancia = fopen("/Users/valberlaux/PCTSP/PCTSP/instancias/w10.txt", "r");
+	
+	if (instancia == NULL){
+		printf("Erro ao carregar instância\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	for (i=0; i<n_vertices; i++) {
+		fscanf(instancia, "%d", &premios[i]);
+	}
+	
+	fclose(instancia);
+	
+}
+
+void le_penalidades(int* penalidades, int n_vertices){
+	int i;
+	FILE* instancia = fopen("/Users/valberlaux/PCTSP/PCTSP/instancias/p10.txt", "r");
+	
+	if (instancia == NULL){
+		printf("Erro ao carregar instância\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	for (i=0; i<n_vertices; i++) {
+		fscanf(instancia, "%d", &penalidades[i]);
+	}
+	
+	fclose(instancia);
+}
+
+void le_matriz_distancias(int** matriz_distancias, int n_vertices){
+	int i, j;
+	
+	FILE* instancia = fopen("/Users/valberlaux/PCTSP/PCTSP/instancias/d10.txt", "r");
+	
+	if (instancia == NULL){
+		printf("Erro ao carregar instância\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	for (i=0; i<n_vertices; i++) {
+		for (j=0; j<n_vertices; j++) {
+			fscanf(instancia, "%d", &matriz_distancias[i][j]);
+		}
+	}
+	
+	fclose(instancia);
+}
+
+int* zeros(int* vetor, int tamanho){
+	int i;
+	if (vetor == NULL) {
+		vetor = malloc(tamanho*sizeof(int));
+	}
+	for (i=0; i<tamanho; i++) {
+		vetor[i] = 0;
+	}
+	return vetor;
+}
+
+void adiciona_vertice_solucao(int *solucao, int* vertices_na_solucao, int *tamanho_solucao, int vertice){
+	solucao[*tamanho_solucao] = vertice;
+	vertices_na_solucao[vertice] = 1;
+	*tamanho_solucao = *tamanho_solucao + 1;
+}
+
+int calcula_custo_solucao(int* solucao, int tamanho_solucao, int n_vertices, int* premios, int* penalidades, int** matriz_distancias){
+	int* vertices_na_solucao = NULL;
+	vertices_na_solucao = zeros(vertices_na_solucao, n_vertices);
+	int custo = 0;
+	int i;
+	//somatório dos prêmios dos vértices visitados
+	for (i=0; i<tamanho_solucao; i++) {
+		vertices_na_solucao[solucao[i]] = PRESENTE;
+		custo -= (premios[solucao[i]]);
+	}
+	//somatório penaldades vértices não visitados
+	for (i=0; i<n_vertices; i++) {
+		if (!vertices_na_solucao[i]) {
+			custo += penalidades[i];
+		}
+	}
+	//somatório custo deslocamentos
+	if (tamanho_solucao > 1) {
+		for (i=0; i<tamanho_solucao -1; i++) {
+			custo += matriz_distancias[i][i+1];
+		}
+	}
+	
+	free(vertices_na_solucao);
+	return custo;
+}
+
+void imprime_vetor(int* vetor, int tamanho){
+	int i;
+	
+	printf("\nVetor:\n");
+	for (i=0; i<tamanho; i++) {
+		printf("%d ", vetor[i]);
+	}
+	printf("\n");
+}
 
 int main(int argc, const char * argv[]) {
-    // insert code here...
-    printf("Hello, World!\n");
+	int i, j;
+    int n_vertices = atoi(argv[1]);
+    int premios[n_vertices];
+	int penalidades[n_vertices];
+    int **matriz_distancias = (int**) malloc(n_vertices * sizeof(int*));
+	for (i=0; i<n_vertices; i++) {
+		matriz_distancias[i] = (int*) malloc(n_vertices * sizeof(int));
+	}
+	
+	le_premios(premios, n_vertices);
+	le_penalidades(penalidades, n_vertices);
+	le_matriz_distancias(matriz_distancias, n_vertices);
+	
+	printf("\nPenalidades:");
+	imprime_vetor(penalidades, n_vertices);
+	printf("\nPremios:");
+	imprime_vetor(premios, n_vertices);
+	
+	int solucao[n_vertices], tamanho_solucao = 0, custo_solucao = INF;
+	int* vertices_na_solucao = NULL;
+	vertices_na_solucao = zeros(vertices_na_solucao, n_vertices);
+	
+	adiciona_vertice_solucao(solucao, vertices_na_solucao, &tamanho_solucao, 0);
+	
+	int custo_candidatos[n_vertices];
+	int solucao_temp[n_vertices], tamanho_solucao_temp, *vertices_na_solucao_temp = NULL;
+	vertices_na_solucao_temp = zeros(vertices_na_solucao_temp, n_vertices);
+	for (i=0; i<n_vertices; i++) {
+		if (!vertices_na_solucao[i]) {
+			tamanho_solucao_temp = tamanho_solucao;
+			memcpy(solucao_temp, solucao, n_vertices*sizeof(int));
+			adiciona_vertice_solucao(solucao_temp, vertices_na_solucao_temp, &tamanho_solucao_temp, i);
+			custo_candidatos[i] = calcula_custo_solucao(solucao_temp, tamanho_solucao_temp, n_vertices, premios, penalidades, matriz_distancias);
+		} else {
+			custo_candidatos[i] = -1;
+		}
+	}
+	
+	for (i=0; i<n_vertices; i++) {
+		printf("cand %d: %d\n", i, custo_candidatos[i]);
+	}
+	
+	custo_solucao = calcula_custo_solucao(solucao, tamanho_solucao, n_vertices, premios, penalidades, matriz_distancias);
+	
+	printf("CUSTO: %d\n", custo_solucao);
+	
+	//liberando matriz de distancias da memória
+	for (i=0; i<n_vertices; i++) {
+		free(matriz_distancias[i]);
+	}
+	free(matriz_distancias);
+	
+	free(vertices_na_solucao);
+	free(vertices_na_solucao_temp);
+
     return 0;
 }
