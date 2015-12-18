@@ -14,6 +14,7 @@
 #define INF 9999999
 #define PRESENTE 1
 #define ALPHA 0.2
+#define MIN_PREMIOS_COLETADOS 0.75
 
 void inicia_funcaoaleatoria(void)
 {
@@ -22,8 +23,9 @@ void inicia_funcaoaleatoria(void)
 	srand((int)tmb.time*1000 + tmb.millitm);
 }
 
-void le_premios(int* premios, int n_vertices){
+void le_premios(int* premios, int n_vertices, int* min_premios){
 	int i;
+	int somatorio_premios = 0;
 	FILE *instancia;
 	instancia = fopen("/Users/valberlaux/PCTSP/PCTSP/instancias/w10.txt", "r");
 	
@@ -34,8 +36,10 @@ void le_premios(int* premios, int n_vertices){
 	
 	for (i=0; i<n_vertices; i++) {
 		fscanf(instancia, "%d", &premios[i]);
+		somatorio_premios += premios[i];
 	}
 	
+	*min_premios = somatorio_premios * MIN_PREMIOS_COLETADOS;
 	fclose(instancia);
 	
 }
@@ -92,16 +96,24 @@ void adiciona_vertice_solucao(int *solucao, int* vertices_na_solucao, int *taman
 	*tamanho_solucao = *tamanho_solucao + 1;
 }
 
-int calcula_custo_solucao(int* solucao, int tamanho_solucao, int n_vertices, int* premios, int* penalidades, int** matriz_distancias){
+int calcula_custo_solucao(int* solucao, int tamanho_solucao, int n_vertices, int* premios, int min_premios, int* penalidades, int** matriz_distancias){
 	int* vertices_na_solucao = NULL;
 	vertices_na_solucao = zeros(vertices_na_solucao, n_vertices);
 	int custo = 0;
 	int i;
+	int premios_acumulados = 0;
 	//somatório dos prêmios dos vértices visitados
 	for (i=0; i<tamanho_solucao; i++) {
 		vertices_na_solucao[solucao[i]] = PRESENTE;
 		custo -= (premios[solucao[i]]);
+		premios_acumulados += premios[solucao[i]];
 	}
+	if (tamanho_solucao == n_vertices && premios_acumulados < min_premios) {
+		printf("NÃO CONSEGUI SOMAR OS PREMIOS NECESSARIOS\n");
+		free(vertices_na_solucao);
+		return INF;
+	}
+	
 	//somatório penaldades vértices não visitados
 	for (i=0; i<n_vertices; i++) {
 		if (!vertices_na_solucao[i]) {
@@ -169,41 +181,107 @@ float reativo(){ //FIXME grasp reativo aqui
 	return ALPHA;
 }
 
-int main(int argc, const char * argv[]) {
+int* remove_vertice(int* solucao, int* tamanho, int vertice_removido){
+	int i, j = 0;
+	int* nova_solucao = malloc((*tamanho-1)*sizeof(int));
+
+	for (i=0; i<*tamanho; i++) {
+		if (i==vertice_removido) {
+			i++;
+		}
+		nova_solucao[j] = solucao[i];
+		j++;
+	}
+	
+	*tamanho = *tamanho-1;
+	free(solucao);
+	return nova_solucao;
+	
+}
+
+int somatorio_premios(int* solucao, int tamanho_solucao, int* premios){
 	int i;
+	
+	int somatorio = 0;
+	for (i=0; i<tamanho_solucao; i++) {
+		somatorio += premios[solucao[i]];
+	}
+	
+	return somatorio;
+	
+}
+
+void remove_vertices(int* solucao_busca_local, int* tamanho_solucao_bl, int n_vertices, int* premios, int min_premios, int* penalidades, int** matriz_distancias){
+	int i;
+	int* solucao_temp = malloc(*tamanho_solucao_bl*sizeof(int)), *melhor_solucao = malloc(*tamanho_solucao_bl*sizeof(int)), tamanho_solucao_temp = *tamanho_solucao_bl, custo_temp = INF, melhor_custo = INF;
+
+	do {
+		
+		for (i=1; i<*tamanho_solucao_bl; i++) { // qual o melhor candidato pra remover
+			solucao_temp = memcpy(solucao_temp, solucao_busca_local, *tamanho_solucao_bl*sizeof(int));
+			solucao_temp = remove_vertice(solucao_temp, &tamanho_solucao_temp, i);
+			custo_temp = calcula_custo_solucao(solucao_temp, tamanho_solucao_temp, n_vertices, premios, min_premios, penalidades, matriz_distancias);
+			if (custo_temp < melhor_custo) {
+				memcpy(melhor_solucao, solucao_temp, tamanho_solucao_temp*sizeof(int));
+				melhor_custo = custo_temp;
+			}
+		}
+		
+		free(solucao_busca_local);
+		solucao_busca_local = melhor_solucao;
+		*tamanho_solucao_bl = tamanho_solucao_temp;
+		
+	} while (somatorio_premios(solucao_temp, tamanho_solucao_temp, premios) >= min_premios);
+	
+	
+	free(solucao_temp);
+	
+}
+
+int main(int argc, const char * argv[]) {
+	
+	inicia_funcaoaleatoria();
+
+	//variáveis do problema
     int n_vertices = atoi(argv[1]);
     int premios[n_vertices];
 	int penalidades[n_vertices];
+	int min_premios;
+	int *solucao = malloc(n_vertices*sizeof(int)), tamanho_solucao = 0, custo_solucao = INF, candidato_sorteado;
+	float alpha;
+	int* vertices_na_solucao = NULL;
+	vertices_na_solucao = zeros(vertices_na_solucao, n_vertices);
+	
+	//variáveis temporárias
+	int i;
+	int custo_candidatos[n_vertices];
+	int *solucao_temp = malloc(n_vertices*sizeof(int)), tamanho_solucao_temp = 0, *vertices_na_solucao_temp = NULL, custo_solucao_temp = INF;
+	vertices_na_solucao_temp = zeros(vertices_na_solucao_temp, n_vertices);
+	
+	//alocação vetor de distâncias
     int **matriz_distancias = (int**) malloc(n_vertices * sizeof(int*));
 	for (i=0; i<n_vertices; i++) {
 		matriz_distancias[i] = (int*) malloc(n_vertices * sizeof(int));
 	}
 	
-	inicia_funcaoaleatoria();
-	
-	le_premios(premios, n_vertices);
+	//leitura da instância
+	le_premios(premios, n_vertices, &min_premios);
 	le_penalidades(penalidades, n_vertices);
 	le_matriz_distancias(matriz_distancias, n_vertices);
 	
-	int solucao[n_vertices], tamanho_solucao = 0, custo_solucao = INF, candidato_sorteado;
-	float alpha;
-	int* vertices_na_solucao = NULL;
-	vertices_na_solucao = zeros(vertices_na_solucao, n_vertices);
+	
+	//construção GRASP
 	
 	adiciona_vertice_solucao(solucao, vertices_na_solucao, &tamanho_solucao, 0);
 	
-	//construção
 	while (tamanho_solucao < n_vertices) {
 		
-		int custo_candidatos[n_vertices];
-		int solucao_temp[n_vertices], tamanho_solucao_temp, *vertices_na_solucao_temp = NULL;
-		vertices_na_solucao_temp = zeros(vertices_na_solucao_temp, n_vertices);
 		for (i=0; i<n_vertices; i++) {
 			if (!vertices_na_solucao[i]) {
 				tamanho_solucao_temp = tamanho_solucao;
 				memcpy(solucao_temp, solucao, n_vertices*sizeof(int));
 				adiciona_vertice_solucao(solucao_temp, vertices_na_solucao_temp, &tamanho_solucao_temp, i);
-				custo_candidatos[i] = calcula_custo_solucao(solucao_temp, tamanho_solucao_temp, n_vertices, premios, penalidades, matriz_distancias);
+				custo_candidatos[i] = calcula_custo_solucao(solucao_temp, tamanho_solucao_temp, n_vertices, premios, min_premios, penalidades, matriz_distancias);
 			} else {
 				custo_candidatos[i] = -1;
 			}
@@ -218,16 +296,49 @@ int main(int argc, const char * argv[]) {
 		candidato_sorteado = sorteia_candidato(custo_candidatos, alpha, n_vertices);
 		
 		adiciona_vertice_solucao(solucao, vertices_na_solucao, &tamanho_solucao, candidato_sorteado);
-		custo_solucao = calcula_custo_solucao(solucao, tamanho_solucao, n_vertices, premios, penalidades, matriz_distancias);
-		
-		free(vertices_na_solucao_temp);
+		custo_solucao = calcula_custo_solucao(solucao, tamanho_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias);
 		
 	}
 	//fim-construção
 	
+	
+	remove_vertices(solucao_temp, &tamanho_solucao_temp, n_vertices, premios, min_premios, penalidades, matriz_distancias);
+	
+	
 	//VNS
 	
-	printf("\nSOLUCAO:\n");
+	/*
+	int k = 1, k_max = 4;
+	memcpy(solucao_temp, solucao, n_vertices*sizeof(int));
+	
+	while (k<=k_max) {
+		switch (k) {
+			case 1:
+				//remove_vertices();
+				break;
+			
+			
+			default:
+				printf("Erro na estrutura de vizinhança do VNS\n");
+				exit(EXIT_FAILURE);
+				break;
+		}
+		
+		//busca_local(solucao_temp);
+		
+		custo_solucao_temp = calcula_custo_solucao(solucao_temp, tamanho_solucao_temp, n_vertices, premios, min_premios, penalidades, matriz_distancias);
+		if (custo_solucao_temp < custo_solucao) {
+			free(solucao);
+			solucao = solucao_temp;
+			custo_solucao = custo_solucao_temp;
+			k = 1;
+		} else {
+			k++;
+		}
+		
+	}
+	*/
+	printf("\nmin_premios: %d\n\n\nSOLUCAO:\n", min_premios);
 	imprime_vetor(solucao, n_vertices);
 	
 	printf("\nCUSTO: %d\n", custo_solucao);
@@ -239,8 +350,10 @@ int main(int argc, const char * argv[]) {
 	}
 	
 	free(matriz_distancias);
-	
 	free(vertices_na_solucao);
+	free(vertices_na_solucao_temp);
+	free(solucao);
+	//free(solucao_temp);
 
     return 0;
 }
