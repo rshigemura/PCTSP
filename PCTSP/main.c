@@ -245,6 +245,52 @@ int remove_vertice_menor_beneficio(int* solucao, int* custo_solucao, int* tamanh
 		return FALSE;
 }
 
+void contrucao_grasp(int* solucao, int n_vertices, int* custo_solucao, int* tamanho_solucao, int** matriz_distancias, int* premios, int min_premios, int* penalidades, int somatorio_penalidades){
+	int vertices_na_solucao[n_vertices];
+	for (int i = 0; i<n_vertices; i++) {
+		vertices_na_solucao[i] = 0;
+	}
+	
+	//inicia solução sempre com o vértice obrigatório 0
+	adiciona_vertice_solucao(solucao, vertices_na_solucao, tamanho_solucao, 0);
+	*custo_solucao = calcula_custo_solucao(solucao, *tamanho_solucao, somatorio_penalidades, n_vertices, premios, penalidades, matriz_distancias);
+	int custo_candidatos[n_vertices];
+	
+	while (*tamanho_solucao < n_vertices) {
+		
+		for (int i=0; i<n_vertices; i++) {
+			if (!vertices_na_solucao[i]) {
+				custo_candidatos[i] = calcula_custo_adicao_vertice_no_final(solucao, *tamanho_solucao, i, *custo_solucao, premios, penalidades, matriz_distancias);
+			} else {
+				custo_candidatos[i] = -1;
+			}
+		}
+		
+		for (int i=0; i<n_vertices; i++) {
+			printf("cand %d: %d\n", i, custo_candidatos[i]);
+		}
+		
+		float alpha = reativo();
+		
+		int candidato_sorteado = sorteia_candidato(custo_candidatos, alpha, n_vertices);
+		
+		adiciona_vertice_solucao(solucao, vertices_na_solucao, tamanho_solucao, candidato_sorteado);
+		
+		imprime_vetor(solucao, *tamanho_solucao, "solucao construida até aqui:");
+		
+		*custo_solucao = custo_candidatos[candidato_sorteado];
+		
+	}
+	
+	if (testa_viabilidade(solucao, *tamanho_solucao, premios, min_premios)) {
+		printf("Solucao viável!\n");
+	} else {
+		printf("Solucao inviável :( \n");
+	}
+
+	
+}
+
 int main(int argc, const char * argv[]) {
 	
 	inicia_funcaoaleatoria();
@@ -253,15 +299,12 @@ int main(int argc, const char * argv[]) {
     int n_vertices = atoi(argv[1]);
 	int *premios = malloc(n_vertices*sizeof(int));
 	int *penalidades = malloc(n_vertices*sizeof(int));
-	int *solucao = malloc(n_vertices*sizeof(int)), tamanho_solucao = 0, custo_solucao = INF, candidato_sorteado;
-	float alpha;
-	int *vertices_na_solucao = zeros(n_vertices);
+	int *solucao = malloc(n_vertices*sizeof(int)), tamanho_solucao = 0, custo_solucao = INF;
 	
 	int somatorio_premios, somatorio_penalidades, min_premios;
 	
 	//variáveis temporárias
 	int i;
-	int custo_candidatos[n_vertices];
 	
 	//alocação vetor de distâncias
     int **matriz_distancias = (int**) malloc(n_vertices * sizeof(int*));
@@ -278,44 +321,7 @@ int main(int argc, const char * argv[]) {
 	
 	
 	//construção GRASP
-	
-	adiciona_vertice_solucao(solucao, vertices_na_solucao, &tamanho_solucao, 0);
-	custo_solucao = calcula_custo_solucao(solucao, tamanho_solucao, somatorio_penalidades, n_vertices, premios, penalidades, matriz_distancias);
-	
-	while (tamanho_solucao < n_vertices) {
-		
-		for (i=0; i<n_vertices; i++) {
-			if (!vertices_na_solucao[i]) {
-				custo_candidatos[i] = calcula_custo_adicao_vertice_no_final(solucao, tamanho_solucao, i, custo_solucao, premios, penalidades, matriz_distancias);
-			} else {
-				custo_candidatos[i] = -1;
-			}
-		}
-		
-		for (i=0; i<n_vertices; i++) {
-			printf("cand %d: %d\n", i, custo_candidatos[i]);
-		}
-		
-		alpha = reativo();
-		
-		candidato_sorteado = sorteia_candidato(custo_candidatos, alpha, n_vertices);
-		
-		adiciona_vertice_solucao(solucao, vertices_na_solucao, &tamanho_solucao, candidato_sorteado);
-		
-		imprime_vetor(solucao, tamanho_solucao, "solucao construida até aqui:");
-		
-		custo_solucao = custo_candidatos[candidato_sorteado];
-		
-	}
-	
-	if (testa_viabilidade(solucao, tamanho_solucao, premios, min_premios)) {
-		printf("Solucao viável!\n");
-	} else {
-		printf("Solucao inviável :( \n");
-	}
-	//fim-construção
-	
-	
+	contrucao_grasp(solucao, n_vertices, &custo_solucao, &tamanho_solucao, matriz_distancias, premios, min_premios, penalidades, somatorio_penalidades);
 	
 	//VNS
 	
@@ -373,8 +379,7 @@ int main(int argc, const char * argv[]) {
 		free(matriz_distancias[i]);
 	}
 	free(matriz_distancias);
-	free(vertices_na_solucao);
-	//free(solucao); @FIXME problemas com redefinicao de ponteiros no meio do código
+	free(solucao);
 	free(premios);
 	free(penalidades);
 
