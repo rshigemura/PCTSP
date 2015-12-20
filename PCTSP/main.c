@@ -204,7 +204,7 @@ int testa_viabilidade(int* solucao, int tamanho_solucao, int* premios, int min_p
 	
 }
 
-int calcula_custo_adicao_vertice(int* solucao, int tamanho_solucao, int id_vertice, int custo_solucao, int* premios, int* penalidades, int** matriz_distancias) {
+int calcula_custo_adicao_vertice_no_final(int* solucao, int tamanho_solucao, int id_vertice, int custo_solucao, int* premios, int* penalidades, int** matriz_distancias) {
 	
 	custo_solucao = custo_solucao - penalidades[id_vertice] + matriz_distancias[solucao[tamanho_solucao-1]][id_vertice];
 	
@@ -225,7 +225,7 @@ int calcula_custo_remover_vertice(int* solucao, int pos, int custo_solucao, int 
 int remove_vertice_menor_beneficio(int* solucao, int* custo_solucao, int* tamanho_solucao, int n_vertices, int* premios, int min_premios, int* penalidades, int** matriz_distancias){
 	
 	int i, temp, menor_custo = *custo_solucao, id_menor_custo = -1;
-	int somatorio_premios_coletados = premios_coletados(solucao, *tamanho_solucao, premios);	
+	int somatorio_premios_coletados = premios_coletados(solucao, *tamanho_solucao, premios);
 	
 	for (i=1; i<*tamanho_solucao; i++){
 		temp = calcula_custo_remover_vertice(solucao, i, *custo_solucao, *tamanho_solucao, penalidades, matriz_distancias);
@@ -286,7 +286,7 @@ int main(int argc, const char * argv[]) {
 		
 		for (i=0; i<n_vertices; i++) {
 			if (!vertices_na_solucao[i]) {
-				custo_candidatos[i] = calcula_custo_adicao_vertice(solucao, tamanho_solucao, i, custo_solucao, premios, penalidades, matriz_distancias);
+				custo_candidatos[i] = calcula_custo_adicao_vertice_no_final(solucao, tamanho_solucao, i, custo_solucao, premios, penalidades, matriz_distancias);
 			} else {
 				custo_candidatos[i] = -1;
 			}
