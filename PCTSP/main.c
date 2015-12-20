@@ -9,15 +9,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include<sys/timeb.h>
+#include <sys/timeb.h>
 
 #define INF 9999999
 #define PRESENTE 1
 #define ALPHA 0.2
 #define MIN_PREMIOS_COLETADOS 0.75
 
-void inicia_funcaoaleatoria(void)
-{
+void inicia_funcaoaleatoria(void){
 	struct timeb tmb;
 	ftime(&tmb);
 	srand((int)tmb.time*1000 + tmb.millitm);
@@ -79,11 +78,9 @@ void le_matriz_distancias(int** matriz_distancias, int n_vertices){
 	fclose(instancia);
 }
 
-int* zeros(int* vetor, int tamanho){
+int* zeros(int tamanho){
 	int i;
-	if (vetor == NULL) {
-		vetor = malloc(tamanho*sizeof(int));
-	}
+	int* vetor = malloc(tamanho*sizeof(int));
 	for (i=0; i<tamanho; i++) {
 		vetor[i] = 0;
 	}
@@ -97,8 +94,12 @@ void adiciona_vertice_solucao(int *solucao, int* vertices_na_solucao, int *taman
 }
 
 int calcula_custo_solucao(int* solucao, int tamanho_solucao, int n_vertices, int* premios, int min_premios, int* penalidades, int** matriz_distancias){
-	int* vertices_na_solucao = NULL;
-	vertices_na_solucao = zeros(vertices_na_solucao, n_vertices);
+	int *vertices_na_solucao = zeros(n_vertices);
+	if (vertices_na_solucao == NULL) {
+		printf("OOOOOOOOPS\n");
+		exit(EXIT_FAILURE);
+	}
+	
 	int custo = 0;
 	int i;
 	int premios_acumulados = 0;
@@ -132,10 +133,10 @@ int calcula_custo_solucao(int* solucao, int tamanho_solucao, int n_vertices, int
 	return custo;
 }
 
-void imprime_vetor(int* vetor, int tamanho){
+void imprime_vetor(int* vetor, int tamanho, char* mensagem){
 	int i;
 	
-	printf("\nVetor:\n");
+	printf("\n%s\n", mensagem);
 	for (i=0; i<tamanho; i++) {
 		printf("%d ", vetor[i]);
 	}
@@ -183,7 +184,7 @@ float reativo(){ //FIXME grasp reativo aqui
 
 int* remove_vertice(int* solucao, int* tamanho, int vertice_removido){
 	int i, j = 0;
-	int* nova_solucao = malloc((*tamanho-1)*sizeof(int));
+	int *nova_solucao = (int*) malloc(10 * sizeof(int));
 
 	for (i=0; i<*tamanho; i++) {
 		if (i==vertice_removido) {
@@ -211,31 +212,28 @@ int somatorio_premios(int* solucao, int tamanho_solucao, int* premios){
 	
 }
 
-void remove_vertices(int* solucao_busca_local, int* tamanho_solucao_bl, int n_vertices, int* premios, int min_premios, int* penalidades, int** matriz_distancias){
-	int i;
-	int* solucao_temp = malloc(*tamanho_solucao_bl*sizeof(int)), *melhor_solucao = malloc(*tamanho_solucao_bl*sizeof(int)), tamanho_solucao_temp = *tamanho_solucao_bl, custo_temp = INF, melhor_custo = INF;
+int calcula_custo_remover_vertice(int i, int custo_solucao, int* premios, int* penalidades, int** matriz_distancias){
+	return custo_solucao - premios[i] + penalidades[i] - matriz_distancias[i-1][i] - matriz_distancias[i][i+1] + matriz_distancias[i-1][i+1]; //se remover o último dá caca!!!
+}
 
-	do {
-		
-		for (i=1; i<*tamanho_solucao_bl; i++) { // qual o melhor candidato pra remover
-			solucao_temp = memcpy(solucao_temp, solucao_busca_local, *tamanho_solucao_bl*sizeof(int));
-			solucao_temp = remove_vertice(solucao_temp, &tamanho_solucao_temp, i);
-			custo_temp = calcula_custo_solucao(solucao_temp, tamanho_solucao_temp, n_vertices, premios, min_premios, penalidades, matriz_distancias);
-			if (custo_temp < melhor_custo) {
-				memcpy(melhor_solucao, solucao_temp, tamanho_solucao_temp*sizeof(int));
-				melhor_custo = custo_temp;
-			}
+int* remove_vertice_menor_beneficio(int* solucao, int* custo_solucao, int* tamanho_solucao, int n_vertices, int* premios, int min_premios, int* penalidades, int** matriz_distancias){
+	
+	int i, temp;
+	int id_vertice_remover = -1;
+	int melhor_custo_remocao = INF;
+	
+	for (i=1; i<*tamanho_solucao; i++) {
+		temp = calcula_custo_remover_vertice(i, *custo_solucao, premios, penalidades, matriz_distancias);
+		if (temp < melhor_custo_remocao) { // verificar se solucao não se torna inviável (prêmio mínimo)
+			id_vertice_remover = i;
+			melhor_custo_remocao = temp;
 		}
-		
-		free(solucao_busca_local);
-		solucao_busca_local = melhor_solucao;
-		*tamanho_solucao_bl = tamanho_solucao_temp;
-		
-	} while (somatorio_premios(solucao_temp, tamanho_solucao_temp, premios) >= min_premios);
+	}
 	
+	remove_vertice(solucao, tamanho_solucao, id_vertice_remover);
+	*custo_solucao = melhor_custo_remocao;
 	
-	free(solucao_temp);
-	
+	return solucao;
 }
 
 int main(int argc, const char * argv[]) {
@@ -244,19 +242,17 @@ int main(int argc, const char * argv[]) {
 
 	//variáveis do problema
     int n_vertices = atoi(argv[1]);
-    int premios[n_vertices];
-	int penalidades[n_vertices];
+	int *premios = malloc(n_vertices*sizeof(int));
+	int *penalidades = malloc(n_vertices*sizeof(int));
 	int min_premios;
 	int *solucao = malloc(n_vertices*sizeof(int)), tamanho_solucao = 0, custo_solucao = INF, candidato_sorteado;
 	float alpha;
-	int* vertices_na_solucao = NULL;
-	vertices_na_solucao = zeros(vertices_na_solucao, n_vertices);
+	int *vertices_na_solucao = zeros(n_vertices);
 	
 	//variáveis temporárias
 	int i;
 	int custo_candidatos[n_vertices];
-	int *solucao_temp = malloc(n_vertices*sizeof(int)), tamanho_solucao_temp = 0, *vertices_na_solucao_temp = NULL, custo_solucao_temp = INF;
-	vertices_na_solucao_temp = zeros(vertices_na_solucao_temp, n_vertices);
+	int *solucao_temp = malloc(n_vertices*sizeof(int)), tamanho_solucao_temp = 0, *vertices_na_solucao_temp = zeros(n_vertices);
 	
 	//alocação vetor de distâncias
     int **matriz_distancias = (int**) malloc(n_vertices * sizeof(int*));
@@ -301,8 +297,10 @@ int main(int argc, const char * argv[]) {
 	}
 	//fim-construção
 	
-	
-	remove_vertices(solucao_temp, &tamanho_solucao_temp, n_vertices, premios, min_premios, penalidades, matriz_distancias);
+	printf("\nmin_premios: %d\n", min_premios);
+	imprime_vetor(solucao, tamanho_solucao, "solucao inicial");
+	printf("\nCUSTO ANTES DA REMOCAO: %d\n", custo_solucao);
+	solucao = remove_vertice_menor_beneficio(solucao, &custo_solucao, &tamanho_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias);
 	
 	
 	//VNS
@@ -338,22 +336,26 @@ int main(int argc, const char * argv[]) {
 		
 	}
 	*/
-	printf("\nmin_premios: %d\n\n\nSOLUCAO:\n", min_premios);
-	imprime_vetor(solucao, n_vertices);
+
+	imprime_vetor(solucao, tamanho_solucao, "solucao:");
+	printf("\ncusto depois da remocao: %d\n", custo_solucao);
 	
-	printf("\nCUSTO: %d\n", custo_solucao);
+	printf("\n Confirmando cálculo do custo: %d\n", calcula_custo_solucao(solucao, tamanho_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias));
 	
+	//custo_solucao = calcula_custo_solucao(solucao_temp, tamanho_solucao_temp, n_vertices, premios, min_premios, penalidades, matriz_distancias);
+	//printf("\nCUSTO: %d\nSomatorio premios: %d\n", custo_solucao, somatorio_premios(solucao_temp, tamanho_solucao_temp, premios));
+	//testa();
 	
 	//liberando matriz de distancias da memória
 	for (i=0; i<n_vertices; i++) {
 		free(matriz_distancias[i]);
 	}
-	
 	free(matriz_distancias);
 	free(vertices_na_solucao);
 	free(vertices_na_solucao_temp);
-	free(solucao);
-	//free(solucao_temp);
+	//free(solucao); @FIXME problemas com redefinicao de ponteiros no meio do código
+	free(premios);
+	free(penalidades);
 
     return 0;
 }
