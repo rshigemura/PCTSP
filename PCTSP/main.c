@@ -125,8 +125,13 @@ int gera_numero_aleatorio_entre(int limite_inferior, int limite_superior){
 	if (limite_inferior == limite_superior) {
 		return limite_superior;
 	}
-	int	numero_aleatorio = rand()%limite_superior-limite_inferior;
+	int	numero_aleatorio = rand()%(limite_superior-limite_inferior);
 	numero_aleatorio += limite_inferior;
+	
+	if (numero_aleatorio == 0) {
+		printf("QUE PORRA É ESSA???!!!!! não tem como ser 0 mdds!\n");
+		exit(EXIT_FAILURE);
+	}
 
 	return numero_aleatorio;
 }
@@ -245,7 +250,7 @@ int calcula_custo_remover_vertice(int* solucao, int pos, int custo_solucao, int 
 		custo_solucao = custo_solucao - matriz_distancias[solucao[pos]][solucao[pos+1]] + matriz_distancias[solucao[pos-1]][solucao[pos+1]];
 	}
 	if (pos == tamanho_solucao-1) {
-		custo_solucao = custo_solucao - matriz_distancias[pos][0] + matriz_distancias[solucao[pos-1]][0];
+		custo_solucao = custo_solucao - matriz_distancias[solucao[pos]][0] + matriz_distancias[solucao[pos-1]][0];
 	}
 
 	return custo_solucao;
@@ -391,11 +396,11 @@ void troca_duas_posicoes(int* solucao, int tamanho_solucao, int *custo_solucao, 
 	
 	printf("troquei a posicao %d com a posicao %d\n", posicao1, posicao2);
 	
+	*custo_solucao = calcula_custo_troca_posicoes(solucao, tamanho_solucao, *custo_solucao, matriz_distancias, posicao1, posicao2);
+	
 	int temp = solucao[posicao1];
 	solucao[posicao1] = solucao[posicao2];
 	solucao[posicao2] = temp;
-	
-	*custo_solucao = calcula_custo_troca_posicoes(solucao, tamanho_solucao, *custo_solucao, matriz_distancias, posicao1, posicao2);
 	
 	printf("E o custo ficou em %d\n", *custo_solucao);
 	
@@ -451,7 +456,7 @@ void vnd_busca3(int* solucao, int* custo_solucao, int* tamanho_solucao, int n_ve
 	
 	for (int i = 0; i<1000; i++) {
 		posicao1 = gera_numero_aleatorio_entre(1, *tamanho_solucao);
-		posicao2 = gera_numero_aleatorio_entre(posicao1, *tamanho_solucao);
+		posicao2 = gera_numero_aleatorio_entre(1, *tamanho_solucao);
 		
 		temp = calcula_custo_troca_posicoes(solucao, *tamanho_solucao, *custo_solucao, matriz_distancias, posicao1, posicao2);
 		
@@ -538,6 +543,18 @@ int main(int argc, const char * argv[]) {
 	
 	//construção GRASP
 	contrucao_grasp(solucao, n_vertices, &custo_solucao, &tamanho_solucao, vertices_na_solucao, matriz_distancias, premios, min_premios, penalidades, somatorio_penalidades);
+	
+	printf("custo apos construcao: %d\n", custo_solucao);
+	
+	//nd_busca1(solucao, &custo_solucao, &tamanho_solucao, vertices_na_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias);
+	
+	//vnd_busca2(solucao, &tamanho_solucao, &custo_solucao, n_vertices, vertices_na_solucao, penalidades, matriz_distancias);
+	
+	vnd_busca3(solucao, &custo_solucao, &tamanho_solucao, n_vertices, penalidades, somatorio_penalidades, matriz_distancias);
+	
+	imprime_vetor(solucao, tamanho_solucao, "apos busca local");
+
+	printf("custo solucao: %d\nconfirmando custo: %d\n", custo_solucao, calcula_custo_solucao(solucao, tamanho_solucao, somatorio_penalidades, n_vertices, penalidades, matriz_distancias));
 	
 	//VND
 	/*
