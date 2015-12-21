@@ -127,11 +127,6 @@ int gera_numero_aleatorio_entre(int limite_inferior, int limite_superior){
 	}
 	int	numero_aleatorio = rand()%(limite_superior-limite_inferior);
 	numero_aleatorio += limite_inferior;
-	
-	if (numero_aleatorio == 0) {
-		printf("QUE PORRA É ESSA???!!!!! não tem como ser 0 mdds!\n");
-		exit(EXIT_FAILURE);
-	}
 
 	return numero_aleatorio;
 }
@@ -475,24 +470,35 @@ void vnd_busca3(int* solucao, int* custo_solucao, int* tamanho_solucao, int n_ve
 
 void vnd_busca4(int* solucao, int* tamanho_solucao, int* custo_solucao, int n_vertices, int* vertices_na_solucao, int* penalidades, int* premios, int** matriz_distancias){ // adiciona aleatório
 	int n_vertices_fora = n_vertices - *tamanho_solucao;
+	if (n_vertices_fora == 0) {
+		return;
+	}
 	
-	int vertices_fora[n_vertices_fora], prox_pos = 0, posicao_adicao, vertice_adicionar, melhor_pos = -1, melhor_vertice = -1, melhor_custo = INF, temp;
+	int vertices_fora[n_vertices_fora], prox_pos = 0, posicao_adicao, pos_vertice_adicionar, melhor_pos = -1, melhor_vertice = -1, melhor_custo = INF, temp;
 	
 	for (int i = 0; i<n_vertices; i++) {
-		if (!vertices_na_solucao[i]) {
+		printf("vertice %d na solucao? %d\n", i, vertices_na_solucao[i]);
+		if (vertices_na_solucao[i] == 0) {
+			printf("add no vetorrrr\n");
 			vertices_fora[prox_pos] = i;
 			prox_pos++;
 		}
 	}
 	
+	printf("n_vertices_fora: %d\nvertices fora:\n", n_vertices_fora);
+	for (int i=0; i<n_vertices_fora; i++) {
+		printf("%d ", vertices_fora[i]);
+	}
+	
+	printf("passou\n");
 	for (int i = 0; i<n_vertices; i++) {
-		posicao_adicao = gera_numero_aleatorio_entre(0, *tamanho_solucao);
-		vertice_adicionar = gera_numero_aleatorio_entre(0, n_vertices_fora);
-		temp = calcula_custo_adicionar_vertice(solucao, vertices_fora[vertice_adicionar], posicao_adicao, *custo_solucao, *tamanho_solucao, penalidades, matriz_distancias);
+		posicao_adicao = gera_numero_aleatorio_entre(1, *tamanho_solucao);
+		pos_vertice_adicionar = gera_numero_aleatorio_entre(0, n_vertices_fora);
+		temp = calcula_custo_adicionar_vertice(solucao, vertices_fora[pos_vertice_adicionar], posicao_adicao, *custo_solucao, *tamanho_solucao, penalidades, matriz_distancias);
 		if (temp < melhor_custo){
 			melhor_custo = temp;
 			melhor_pos = posicao_adicao;
-			melhor_vertice = vertice_adicionar;
+			melhor_vertice = vertices_fora[pos_vertice_adicionar];
 		}
 	}
 	
@@ -546,11 +552,15 @@ int main(int argc, const char * argv[]) {
 	
 	printf("custo apos construcao: %d\n", custo_solucao);
 	
-	//nd_busca1(solucao, &custo_solucao, &tamanho_solucao, vertices_na_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias);
+	vnd_busca1(solucao, &custo_solucao, &tamanho_solucao, vertices_na_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias);
+	imprime_vetor(solucao, tamanho_solucao, "vetor apois bl1");
+	printf("custo apos bl1 %d\n", custo_solucao);
 	
 	//vnd_busca2(solucao, &tamanho_solucao, &custo_solucao, n_vertices, vertices_na_solucao, penalidades, matriz_distancias);
 	
-	vnd_busca3(solucao, &custo_solucao, &tamanho_solucao, n_vertices, penalidades, somatorio_penalidades, matriz_distancias);
+	//vnd_busca3(solucao, &custo_solucao, &tamanho_solucao, n_vertices, penalidades, somatorio_penalidades, matriz_distancias);
+	
+	vnd_busca4(solucao, &tamanho_solucao, &custo_solucao, n_vertices, vertices_na_solucao, penalidades, premios, matriz_distancias);
 	
 	imprime_vetor(solucao, tamanho_solucao, "apos busca local");
 
