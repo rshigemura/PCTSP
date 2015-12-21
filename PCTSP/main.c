@@ -102,7 +102,7 @@ void adiciona_vertice_final_solucao(int *solucao, int* vertices_na_solucao, int 
 	*tamanho_solucao = *tamanho_solucao + 1;
 }
 
-int calcula_custo_solucao(int* solucao, int tamanho_solucao, int somatorio_penalidades, int n_vertices, int* penalidades, int** matriz_distancias){
+int calcula_custo_solucao(int* solucao, int tamanho_solucao, int somatorio_penalidades, int n_vertices, int* penalidades, int** matriz_distancias){ //corrigido para volta
 	int custo;
 	int i;
 	
@@ -115,6 +115,8 @@ int calcula_custo_solucao(int* solucao, int tamanho_solucao, int somatorio_penal
 	//somatório custo deslocamentos
 	for (i=0; i<tamanho_solucao -1; i++)
 		custo += matriz_distancias[solucao[i]][solucao[i+1]];
+		
+	custo += matriz_distancias[solucao[0]][solucao[tamanho_solucao-1]]; // custo da volta para o vértice inicial
 	
 	return custo;
 }
@@ -217,33 +219,33 @@ int testa_viabilidade(int* solucao, int tamanho_solucao, int* premios, int min_p
 	
 }
 
-int calcula_custo_adicionar_vertice(int* solucao, int vertice, int pos, int custo_solucao, int tamanho_solucao, int* penalidades, int** matriz_distancias){
+int calcula_custo_adicao_vertice_no_final(int* solucao, int tamanho_solucao, int id_vertice, int custo_solucao, int* penalidades, int** matriz_distancias) { //corrigido para a volta
 	
-	printf("\ncusto solucao (%d) - penalidade[%d](%d) + mat_dst[%d][%d] (%d)", custo_solucao, vertice, penalidades[vertice], solucao[pos-1], vertice, matriz_distancias[solucao[pos-1]][vertice]);
-	custo_solucao = custo_solucao - penalidades[vertice] + matriz_distancias[solucao[pos-1]][vertice];
- 
-	if (pos != tamanho_solucao-1) {
-		printf(" custo_solucao(%d) - m_d[%d][%d] (%d) + matdst[%d][%d] (%d)\n", custo_solucao, solucao[pos-1], solucao[pos], matriz_distancias[solucao[pos-1]][solucao[pos]], vertice, solucao[pos], matriz_distancias[vertice][solucao[pos]]);
-		custo_solucao = custo_solucao - matriz_distancias[solucao[pos-1]][solucao[pos]] + matriz_distancias[vertice][solucao[pos]];
+	custo_solucao = custo_solucao - penalidades[id_vertice] - matriz_distancias[solucao[tamanho_solucao-1]][0] + matriz_distancias[solucao[tamanho_solucao-1]][id_vertice] + matriz_distancias[id_vertice][0];
+	
+	return custo_solucao;
+}
+
+int calcula_custo_adicionar_vertice(int* solucao, int vertice, int pos, int custo_solucao, int tamanho_solucao, int* penalidades, int** matriz_distancias){ //corrigido para volta
+	
+	if (pos == tamanho_solucao-1) {
+		return calcula_custo_adicao_vertice_no_final(solucao, tamanho_solucao, vertice, custo_solucao, penalidades, matriz_distancias);
+	} else {
+		custo_solucao = custo_solucao - penalidades[vertice] + matriz_distancias[solucao[pos-1]][vertice] - matriz_distancias[solucao[pos-1]][solucao[pos]] + matriz_distancias[vertice][solucao[pos]];
 	}
-	printf("que deu um custo total de %d\n", custo_solucao);
 	
 	return custo_solucao;
 }
 
-int calcula_custo_adicao_vertice_no_final(int* solucao, int tamanho_solucao, int id_vertice, int custo_solucao, int* premios, int* penalidades, int** matriz_distancias) {
-	
-	custo_solucao = custo_solucao - penalidades[id_vertice] + matriz_distancias[solucao[tamanho_solucao-1]][id_vertice];
-	
-	return custo_solucao;
-}
-
-int calcula_custo_remover_vertice(int* solucao, int pos, int custo_solucao, int tamanho_solucao, int* penalidades, int** matriz_distancias){
+int calcula_custo_remover_vertice(int* solucao, int pos, int custo_solucao, int tamanho_solucao, int* penalidades, int** matriz_distancias){ //corrigido para volta
 
 	custo_solucao = custo_solucao + penalidades[solucao[pos]] - matriz_distancias[solucao[pos-1]][solucao[pos]];
  
 	if (pos != tamanho_solucao-1) {
 		custo_solucao = custo_solucao - matriz_distancias[solucao[pos]][solucao[pos+1]] + matriz_distancias[solucao[pos-1]][solucao[pos+1]];
+	}
+	if (pos == tamanho_solucao-1) {
+		custo_solucao = custo_solucao - matriz_distancias[pos][0] + matriz_distancias[solucao[pos-1]][0];
 	}
 
 	return custo_solucao;
@@ -353,7 +355,7 @@ void vnd_busca5(int* solucao, int *tamanho_solucao, int n_vertices, int *custo_s
 	}
 }
 
-int calcula_custo_troca_posicoes(int* solucao, int tamanho_solucao, int custo_solucao, int** matriz_distancias, int posicao1, int posicao2){
+int calcula_custo_troca_posicoes(int* solucao, int tamanho_solucao, int custo_solucao, int** matriz_distancias, int posicao1, int posicao2){ //corrigida para a volta
 	if (posicao1 == posicao2) {
 		return custo_solucao;
 	}
@@ -367,6 +369,10 @@ int calcula_custo_troca_posicoes(int* solucao, int tamanho_solucao, int custo_so
 	
 	if (posicao2 != tamanho_solucao - 1) { //se for a final não executa essas contas
 		custo_solucao = custo_solucao - matriz_distancias[solucao[posicao2]][solucao[posicao2+1]] + matriz_distancias[solucao[posicao1]][solucao[posicao2+1]];
+	}
+	if (posicao2 == tamanho_solucao -1) { // se for última, recalcula o preco da volta para a origem
+		custo_solucao = custo_solucao - matriz_distancias[solucao[posicao2]][0] + matriz_distancias[solucao[posicao1]][0];
+
 	}
 	
 	if ((posicao2-posicao1) != 1) { // se forem vizinhos não executa essas
@@ -406,7 +412,7 @@ void contrucao_grasp(int* solucao, int n_vertices, int* custo_solucao, int* tama
 		
 		for (int i=0; i<n_vertices; i++) {
 			if (!vertices_na_solucao[i]) {
-				custo_candidatos[i] = calcula_custo_adicao_vertice_no_final(solucao, *tamanho_solucao, i, *custo_solucao, premios, penalidades, matriz_distancias);
+				custo_candidatos[i] = calcula_custo_adicao_vertice_no_final(solucao, *tamanho_solucao, i, *custo_solucao, penalidades, matriz_distancias);
 			} else {
 				custo_candidatos[i] = -1;
 			}
@@ -462,7 +468,7 @@ void vnd_busca3(int* solucao, int* custo_solucao, int* tamanho_solucao, int n_ve
 	
 }
 
-void vnd_busca4(int* solucao, int* tamanho_solucao, int* custo_solucao, int n_vertices, int* vertices_na_solucao, int* penalidades, int** matriz_distancias){ // adiciona aleatório
+void vnd_busca4(int* solucao, int* tamanho_solucao, int* custo_solucao, int n_vertices, int* vertices_na_solucao, int* penalidades, int* premios, int** matriz_distancias){ // adiciona aleatório
 	int n_vertices_fora = n_vertices - *tamanho_solucao;
 	
 	int vertices_fora[n_vertices_fora], prox_pos = 0, posicao_adicao, vertice_adicionar, melhor_pos = -1, melhor_vertice = -1, melhor_custo = INF, temp;
