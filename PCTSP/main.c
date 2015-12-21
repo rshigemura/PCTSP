@@ -19,6 +19,7 @@
 #define PRESENTE 1
 #define ALPHA 0.2
 #define MIN_PREMIOS_COLETADOS 0.75
+#define N_VIZINHANCAS 5
 
 void inicia_funcaoaleatoria(void){
 	struct timeb tmb;
@@ -116,6 +117,16 @@ int calcula_custo_solucao(int* solucao, int tamanho_solucao, int somatorio_penal
 		custo += matriz_distancias[solucao[i]][solucao[i+1]];
 	
 	return custo;
+}
+
+int gera_numero_aleatorio_entre(int limite_inferior, int limite_superior){
+	if (limite_inferior == limite_superior) {
+		return limite_superior;
+	}
+	int	numero_aleatorio = rand()%limite_superior-limite_inferior;
+	numero_aleatorio += limite_inferior;
+
+	return numero_aleatorio;
 }
 
 void imprime_vetor(int* vetor, int tamanho, char* mensagem){
@@ -255,6 +266,10 @@ int remove_vertice_menor_beneficio(int* solucao, int* custo_solucao, int* tamanh
 		remove_vertice(solucao, tamanho_solucao, id_menor_custo, vertices_na_solucao);
 		*custo_solucao = menor_custo;
 		printf("Removi o vértice %d na pos %d com custo %d\n", solucao[id_menor_custo], id_menor_custo, menor_custo);
+		if(!testa_viabilidade(solucao, *tamanho_solucao, premios, min_premios)){
+			printf("FIZ MERDA NÃO É VIÁVEL!!!!!!!\n");
+			exit(EXIT_FAILURE);
+		}
 		return TRUE;
 	}
 	else
@@ -274,7 +289,7 @@ int adiciona_vertice_melhor_beneficio(int* solucao, int *tamanho_solucao, int *c
 	int melhor_vertice = -1, melhor_posicao = -1, melhor_custo = INF, temp = INF;
 	
 	if (*tamanho_solucao == n_vertices) // já estão todos na solução, ninguém para inserir.
-		return ERRO;
+		return FALSE;
 	
 	for (int i = 0; i < n_vertices; i++) { // varre os vértices para ver quais estão livres
 		if (!vertices_na_solucao[i]) {
@@ -289,9 +304,13 @@ int adiciona_vertice_melhor_beneficio(int* solucao, int *tamanho_solucao, int *c
 		}
 	}
 	
-	adiciona_vertice(solucao, tamanho_solucao, melhor_posicao, melhor_vertice, vertices_na_solucao);
-	*custo_solucao = melhor_custo;
-	return TRUE;
+	if(melhor_custo < *tamanho_solucao){
+		adiciona_vertice(solucao, tamanho_solucao, melhor_posicao, melhor_vertice, vertices_na_solucao);
+		*custo_solucao = melhor_custo;
+		return TRUE;
+	} else {
+		return FALSE;
+	}
 }
 
 int adiciona_vertice_aleatorio(int* solucao, int* tamanho_solucao, int* custo_solucao, int n_vertices, int* vertices_na_solucao, int* penalidades, int** matriz_distancias){
@@ -315,27 +334,30 @@ int adiciona_vertice_aleatorio(int* solucao, int* tamanho_solucao, int* custo_so
 	return TRUE;
 }
 
-int remove_vertice_aleatorio(int* solucao, int *tamanho_solucao, int *custo_solucao, int* vertices_na_solucao, int* penalidades, int* premios, int min_premios, int** matriz_distancias){
-	int pos_vertice_remover = -1;
+void vnd_busca5(int* solucao, int *tamanho_solucao, int n_vertices, int *custo_solucao, int* vertices_na_solucao, int* penalidades, int* premios, int min_premios, int** matriz_distancias){
+	int melhor_pos = -1, melhor_custo = INF, temp, pos_vertice_remover;
 	
-	do {
-		pos_vertice_remover = rand()%*tamanho_solucao;
-	} while (pos_vertice_remover == 0);
+	int premios_coletados_solucao = premios_coletados(solucao, *tamanho_solucao, premios);
 	
-	*custo_solucao = calcula_custo_remover_vertice(solucao, pos_vertice_remover, *custo_solucao, *tamanho_solucao, penalidades, matriz_distancias);
-	
-	if (premios_coletados(solucao, *tamanho_solucao, premios) - premios[solucao[pos_vertice_remover]] < min_premios){
-		return ERRO;
+	for (int i = 0; i<n_vertices; i++) {
+		pos_vertice_remover = gera_numero_aleatorio_entre(1, *tamanho_solucao);
+		temp = calcula_custo_remover_vertice(solucao, pos_vertice_remover, *custo_solucao, *tamanho_solucao, penalidades, matriz_distancias);
+		if (temp < melhor_pos && (premios_coletados_solucao - premios[solucao[pos_vertice_remover]] >= min_premios)){
+			melhor_custo = temp;
+			melhor_pos = pos_vertice_remover;
+		}
 	}
-	
-	remove_vertice(solucao, tamanho_solucao, pos_vertice_remover, vertices_na_solucao);
-	return TRUE;
+	if (melhor_custo < *custo_solucao) {
+		*custo_solucao = melhor_custo;
+		remove_vertice(solucao, tamanho_solucao, melhor_pos, vertices_na_solucao);
+	}
 }
 
-
-
 int calcula_custo_troca_posicoes(int* solucao, int tamanho_solucao, int custo_solucao, int** matriz_distancias, int posicao1, int posicao2){
-	if (posicao2 < posicao1){ // ordena para posicao2 ser maior que posicao1 (útil nas contas abaixo)
+	if (posicao1 == posicao2) {
+		return custo_solucao;
+	}
+	else if (posicao2 < posicao1){ // ordena para posicao2 ser maior que posicao1 (útil nas contas abaixo)
 		int temp = posicao1;
 		posicao1 = posicao2;
 		posicao2 = temp;
@@ -355,17 +377,11 @@ int calcula_custo_troca_posicoes(int* solucao, int tamanho_solucao, int custo_so
 	return custo_solucao;
 }
 
-void troca_duas_posicoes(int* solucao, int tamanho_solucao, int *custo_solucao, int n_vertices, int* penalidades, int somatorio_penalidades, int** matriz_distancias){
-	int posicao1, posicao2;
-	
-	do {
-		posicao1 = rand()%tamanho_solucao;
-		printf("tentei definir posicao1: %d\n", posicao1);
-	} while (posicao1 < 1);
-	do {
-		posicao2 = rand()%tamanho_solucao;
-		printf("tentei definir posicao2: %d\n", posicao2);
-	} while (posicao1 == posicao2 || posicao2 < 1);
+void troca_duas_posicoes(int* solucao, int tamanho_solucao, int *custo_solucao, int n_vertices, int* penalidades, int somatorio_penalidades, int** matriz_distancias, int posicao1, int posicao2){
+	if (posicao1 == posicao2) {
+		printf("Posições iguais: não troquei nada\n");
+		return;
+	}
 	
 	printf("troquei a posicao %d com a posicao %d\n", posicao1, posicao2);
 	
@@ -421,6 +437,69 @@ void contrucao_grasp(int* solucao, int n_vertices, int* custo_solucao, int* tama
 	
 }
 
+void vnd_busca3(int* solucao, int* custo_solucao, int* tamanho_solucao, int n_vertices, int* penalidades, int somatorio_penalidades, int** matriz_distancias){
+	int posicao1;
+	int posicao2;
+	
+	int melhor_pos1 = -1, melhor_pos2 = -1, melhor_custo = *custo_solucao, temp = INF;
+	
+	for (int i = 0; i<1000; i++) {
+		posicao1 = gera_numero_aleatorio_entre(1, *tamanho_solucao);
+		posicao2 = gera_numero_aleatorio_entre(posicao1, *tamanho_solucao);
+		
+		temp = calcula_custo_troca_posicoes(solucao, *tamanho_solucao, *custo_solucao, matriz_distancias, posicao1, posicao2);
+		
+		if(temp < melhor_custo) {
+			melhor_custo = temp;
+			melhor_pos1 = posicao1;
+			melhor_pos2 = posicao2;
+		}
+	}
+	
+	if (melhor_custo < *custo_solucao) {
+		troca_duas_posicoes(solucao, *tamanho_solucao, custo_solucao, n_vertices, penalidades, somatorio_penalidades, matriz_distancias, melhor_pos1, melhor_pos2);
+	}
+	
+}
+
+void vnd_busca4(int* solucao, int* tamanho_solucao, int* custo_solucao, int n_vertices, int* vertices_na_solucao, int* penalidades, int** matriz_distancias){ // adiciona aleatório
+	int n_vertices_fora = n_vertices - *tamanho_solucao;
+	
+	int vertices_fora[n_vertices_fora], prox_pos = 0, posicao_adicao, vertice_adicionar, melhor_pos = -1, melhor_vertice = -1, melhor_custo = INF, temp;
+	
+	for (int i = 0; i<n_vertices; i++) {
+		if (!vertices_na_solucao[i]) {
+			vertices_fora[prox_pos] = i;
+			prox_pos++;
+		}
+	}
+	
+	for (int i = 0; i<n_vertices; i++) {
+		posicao_adicao = gera_numero_aleatorio_entre(0, *tamanho_solucao);
+		vertice_adicionar = gera_numero_aleatorio_entre(0, n_vertices_fora);
+		temp = calcula_custo_adicionar_vertice(solucao, vertices_fora[vertice_adicionar], posicao_adicao, *custo_solucao, *tamanho_solucao, penalidades, matriz_distancias);
+		if (temp < melhor_custo){
+			melhor_custo = temp;
+			melhor_pos = posicao_adicao;
+			melhor_vertice = vertice_adicionar;
+		}
+	}
+	
+	if (melhor_custo < *custo_solucao) {
+		adiciona_vertice(solucao, tamanho_solucao, melhor_pos, melhor_vertice, vertices_na_solucao);
+		*custo_solucao = melhor_custo;
+	}
+}
+
+void vnd_busca1(int* solucao, int* custo_solucao, int* tamanho_solucao, int* vertices_na_solucao, int n_vertices, int* premios, int min_premios, int* penalidades, int** matriz_distancias){ // remove enquanto melhorar
+	while (remove_vertice_menor_beneficio(solucao, custo_solucao, tamanho_solucao, vertices_na_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias));
+}
+
+void vnd_busca2(int* solucao, int* tamanho_solucao, int* custo_solucao, int n_vertices, int* vertices_na_solcuao, int* penalidades, int** matriz_distancias){ // adiciona enquanto melhorar
+	while (adiciona_vertice_melhor_beneficio(solucao, tamanho_solucao, custo_solucao, n_vertices, vertices_na_solcuao, penalidades, matriz_distancias));
+}
+
+
 int main(int argc, const char * argv[]) {
 	
 	inicia_funcaoaleatoria();
@@ -453,6 +532,22 @@ int main(int argc, const char * argv[]) {
 	
 	//construção GRASP
 	contrucao_grasp(solucao, n_vertices, &custo_solucao, &tamanho_solucao, vertices_na_solucao, matriz_distancias, premios, min_premios, penalidades, somatorio_penalidades);
+	
+	//VND
+	/*
+	int l =  0, l_max = N_VIZINHANCAS;
+	while (l < l_max) {
+		switch (l) {
+			case 0:
+				break;
+				
+			default:
+    break;
+		}
+	}
+	*/
+	
+	
 	
 	//VNS
 	
@@ -493,6 +588,12 @@ int main(int argc, const char * argv[]) {
 	
 	printf("\n Confirmando cálculo do custo: %d\n", calcula_custo_solucao(solucao, tamanho_solucao, somatorio_penalidades, n_vertices, penalidades, matriz_distancias));
 	
+	/*vnd_busca1(solucao, &custo_solucao, &tamanho_solucao, vertices_na_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias);
+	imprime_vetor(solucao, tamanho_solucao, "APÓS BL1:\n");
+	
+	printf("CUSTO SOLUCAO APOS BL1: %d\n Confirmando custo: %d\n", custo_solucao, calcula_custo_solucao(solucao, tamanho_solucao, somatorio_penalidades, n_vertices, penalidades, matriz_distancias));
+	*/
+	 
 	/*
 	while (remove_vertice_menor_beneficio(solucao, &custo_solucao, &tamanho_solucao, vertices_na_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias)){
 		imprime_vetor(solucao, tamanho_solucao, "vetor:");
