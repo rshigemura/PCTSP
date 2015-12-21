@@ -176,14 +176,16 @@ int encontra_posicao_vertice(int* vetor, int tamanho, int vertice){
 	return ERRO;
 }
 
-void remove_vertice(int* solucao, int* tamanho, int pos_vertice_removido){
+void remove_vertice(int* solucao, int* tamanho, int pos_vertice_removido, int* vertices_na_solucao){
+	
+	vertices_na_solucao[solucao[pos_vertice_removido]] = FALSE;
 	
 	if(pos_vertice_removido != -1){
 		for (int i= pos_vertice_removido; i<(*tamanho-1); i++) {
 			solucao[i] = solucao[i+1];
 		}
 	}
-		
+	
 	*tamanho = *tamanho-1;
 }
 
@@ -204,6 +206,20 @@ int testa_viabilidade(int* solucao, int tamanho_solucao, int* premios, int min_p
 	
 }
 
+int calcula_custo_adicionar_vertice(int* solucao, int vertice, int pos, int custo_solucao, int tamanho_solucao, int* penalidades, int** matriz_distancias){
+	
+	printf("\ncusto solucao (%d) - penalidade[%d](%d) + mat_dst[%d][%d] (%d)", custo_solucao, vertice, penalidades[vertice], solucao[pos-1], vertice, matriz_distancias[solucao[pos-1]][vertice]);
+	custo_solucao = custo_solucao - penalidades[vertice] + matriz_distancias[solucao[pos-1]][vertice];
+ 
+	if (pos != tamanho_solucao-1) {
+		printf(" custo_solucao(%d) - m_d[%d][%d] (%d) + matdst[%d][%d] (%d)\n", custo_solucao, solucao[pos-1], solucao[pos], matriz_distancias[solucao[pos-1]][solucao[pos]], vertice, solucao[pos], matriz_distancias[vertice][solucao[pos]]);
+		custo_solucao = custo_solucao - matriz_distancias[solucao[pos-1]][solucao[pos]] + matriz_distancias[vertice][solucao[pos]];
+	}
+	printf("que deu um custo total de %d\n", custo_solucao);
+	
+	return custo_solucao;
+}
+
 int calcula_custo_adicao_vertice_no_final(int* solucao, int tamanho_solucao, int id_vertice, int custo_solucao, int* premios, int* penalidades, int** matriz_distancias) {
 	
 	custo_solucao = custo_solucao - penalidades[id_vertice] + matriz_distancias[solucao[tamanho_solucao-1]][id_vertice];
@@ -222,7 +238,7 @@ int calcula_custo_remover_vertice(int* solucao, int pos, int custo_solucao, int 
 	return custo_solucao;
 }
 
-int remove_vertice_menor_beneficio(int* solucao, int* custo_solucao, int* tamanho_solucao, int n_vertices, int* premios, int min_premios, int* penalidades, int** matriz_distancias){
+int remove_vertice_menor_beneficio(int* solucao, int* custo_solucao, int* tamanho_solucao, int* vertices_na_solucao, int n_vertices, int* premios, int min_premios, int* penalidades, int** matriz_distancias){
 	
 	int i, temp, menor_custo = *custo_solucao, id_menor_custo = -1;
 	int somatorio_premios_coletados = premios_coletados(solucao, *tamanho_solucao, premios);
@@ -236,7 +252,7 @@ int remove_vertice_menor_beneficio(int* solucao, int* custo_solucao, int* tamanh
 	}
 	
 	if (id_menor_custo != ERRO){
-		remove_vertice(solucao, tamanho_solucao, id_menor_custo);
+		remove_vertice(solucao, tamanho_solucao, id_menor_custo, vertices_na_solucao);
 		*custo_solucao = menor_custo;
 		printf("Removi o vértice %d na pos %d com custo %d\n", solucao[id_menor_custo], id_menor_custo, menor_custo);
 		return TRUE;
@@ -245,11 +261,39 @@ int remove_vertice_menor_beneficio(int* solucao, int* custo_solucao, int* tamanh
 		return FALSE;
 }
 
-void contrucao_grasp(int* solucao, int n_vertices, int* custo_solucao, int* tamanho_solucao, int** matriz_distancias, int* premios, int min_premios, int* penalidades, int somatorio_penalidades){
-	int vertices_na_solucao[n_vertices];
-	for (int i = 0; i<n_vertices; i++) {
-		vertices_na_solucao[i] = 0;
+void adiciona_vertice(int* solucao, int *tamanho_solucao, int posicao, int vertice){
+	for (int i = *tamanho_solucao; i > posicao; i--) {
+		solucao[i] = solucao[i-1];
 	}
+	solucao[posicao] = vertice;
+	*tamanho_solucao = *tamanho_solucao + 1;
+}
+
+int adiciona_vertice_melhor_beneficio(int* solucao, int *tamanho_solucao, int *custo_solucao, int n_vertices, int* vertices_na_solucao, int* penalidades, int** matriz_distancias){
+	int melhor_vertice = -1, melhor_posicao = -1, melhor_custo = INF, temp = INF;
+	
+	if (*tamanho_solucao == n_vertices) // já estão todos na solução, ninguém para inserir.
+		return ERRO;
+	
+	for (int i = 0; i < n_vertices; i++) { // varre os vértices para ver quais estão livres
+		if (!vertices_na_solucao[i]) {
+			for (int j = 1; j<*tamanho_solucao; j++) { // a cada vértice livre encontrado, testa o custo de inseri-lo em todas as posicoes da solucao
+				temp = calcula_custo_adicionar_vertice(solucao, i, j, *custo_solucao, *tamanho_solucao, penalidades, matriz_distancias);
+				if (temp < melhor_custo) {
+					melhor_custo = temp;
+					melhor_vertice = i;
+					melhor_posicao = j;
+				}
+			}
+		}
+	}
+	
+	adiciona_vertice(solucao, tamanho_solucao, melhor_posicao, melhor_vertice);
+	*custo_solucao = melhor_custo;
+	return TRUE;
+}
+
+void contrucao_grasp(int* solucao, int n_vertices, int* custo_solucao, int* tamanho_solucao, int* vertices_na_solucao, int** matriz_distancias, int* premios, int min_premios, int* penalidades, int somatorio_penalidades){
 	
 	//inicia solução sempre com o vértice obrigatório 0
 	adiciona_vertice_solucao(solucao, vertices_na_solucao, tamanho_solucao, 0);
@@ -300,6 +344,7 @@ int main(int argc, const char * argv[]) {
 	int *premios = malloc(n_vertices*sizeof(int));
 	int *penalidades = malloc(n_vertices*sizeof(int));
 	int *solucao = malloc(n_vertices*sizeof(int)), tamanho_solucao = 0, custo_solucao = INF;
+	int *vertices_na_solucao = zeros(n_vertices);
 	
 	int somatorio_premios, somatorio_penalidades, min_premios;
 	
@@ -321,7 +366,7 @@ int main(int argc, const char * argv[]) {
 	
 	
 	//construção GRASP
-	contrucao_grasp(solucao, n_vertices, &custo_solucao, &tamanho_solucao, matriz_distancias, premios, min_premios, penalidades, somatorio_penalidades);
+	contrucao_grasp(solucao, n_vertices, &custo_solucao, &tamanho_solucao, vertices_na_solucao, matriz_distancias, premios, min_premios, penalidades, somatorio_penalidades);
 	
 	//VNS
 	
@@ -362,7 +407,7 @@ int main(int argc, const char * argv[]) {
 	
 	printf("\n Confirmando cálculo do custo: %d\n", calcula_custo_solucao(solucao, tamanho_solucao, somatorio_penalidades, n_vertices, premios, penalidades, matriz_distancias));
 	
-	while (remove_vertice_menor_beneficio(solucao, &custo_solucao, &tamanho_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias)){
+	while (remove_vertice_menor_beneficio(solucao, &custo_solucao, &tamanho_solucao, vertices_na_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias)){
 		imprime_vetor(solucao, tamanho_solucao, "vetor:");
 		printf("custo apos remocao: %d\n", custo_solucao);
 	};
@@ -373,6 +418,11 @@ int main(int argc, const char * argv[]) {
 	
 	printf("confirmando custo: %d\n", calcula_custo_solucao(solucao, tamanho_solucao, somatorio_penalidades, n_vertices, premios, penalidades, matriz_distancias));
 	
+	adiciona_vertice_melhor_beneficio(solucao, &tamanho_solucao, &custo_solucao, n_vertices, vertices_na_solucao, penalidades, matriz_distancias);
+	
+	imprime_vetor(solucao, tamanho_solucao, "Solucao após inserir um vértice de volta");
+	
+	printf("tamanho: %d\ncusto solucao: %d\n confirmando custo solucao: %d\n", tamanho_solucao, custo_solucao, calcula_custo_solucao(solucao, tamanho_solucao, somatorio_penalidades, n_vertices, premios, penalidades, matriz_distancias));
 	
 	//liberando matriz de distancias da memória
 	for (i=0; i<n_vertices; i++) {
@@ -382,6 +432,7 @@ int main(int argc, const char * argv[]) {
 	free(solucao);
 	free(premios);
 	free(penalidades);
+	free(vertices_na_solucao);
 
     return 0;
 }
