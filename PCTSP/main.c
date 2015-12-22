@@ -121,6 +121,27 @@ int calcula_custo_solucao(int* solucao, int tamanho_solucao, int somatorio_penal
 	return custo;
 }
 
+//apenas para testes. não considera a volta
+int calcula_custo_solucao_sem_volta(int* solucao, int tamanho_solucao, int somatorio_penalidades, int n_vertices, int* penalidades, int** matriz_distancias){ //corrigido para volta
+	int custo;
+	int i;
+	
+	custo = somatorio_penalidades;
+	
+	//descontando as penalidades dos vértices visitados
+	for (i=0; i<tamanho_solucao; i++)
+		custo -= penalidades[solucao[i]];
+	
+	//somatório custo deslocamentos
+	for (i=0; i<tamanho_solucao -1; i++)
+		custo += matriz_distancias[solucao[i]][solucao[i+1]];
+	
+	//custo += matriz_distancias[solucao[0]][solucao[tamanho_solucao-1]]; // custo da volta para o vértice inicial
+	
+	return custo;
+}
+
+
 int gera_numero_aleatorio_entre(int limite_inferior, int limite_superior){
 	if (limite_inferior == limite_superior) {
 		return limite_superior;
@@ -219,9 +240,15 @@ int testa_viabilidade(int* solucao, int tamanho_solucao, int* premios, int min_p
 	
 }
 
+int calcula_custo_adicao_construcao(int* solucao, int tamanho_solucao, int id_vertice, int custo_solucao, int* penalidades, int** matriz_distancias){ // nesse caso não considera a volta, já que ela ainda está sendo contruída
+	custo_solucao = custo_solucao - penalidades[id_vertice] + matriz_distancias[solucao[tamanho_solucao-1]][id_vertice];
+	
+	return custo_solucao;
+}
+
 int calcula_custo_adicao_vertice_no_final(int* solucao, int tamanho_solucao, int id_vertice, int custo_solucao, int* penalidades, int** matriz_distancias) { //corrigido para a volta
 	
-	custo_solucao = custo_solucao - penalidades[id_vertice] - matriz_distancias[solucao[tamanho_solucao-1]][0] + matriz_distancias[solucao[tamanho_solucao-1]][id_vertice] + matriz_distancias[id_vertice][0];
+	custo_solucao = custo_solucao - penalidades[id_vertice] - matriz_distancias[solucao[tamanho_solucao-1]][solucao[0]] + matriz_distancias[solucao[tamanho_solucao-1]][id_vertice] + matriz_distancias[id_vertice][solucao[0]];
 	
 	return custo_solucao;
 }
@@ -245,7 +272,7 @@ int calcula_custo_remover_vertice(int* solucao, int pos, int custo_solucao, int 
 		custo_solucao = custo_solucao - matriz_distancias[solucao[pos]][solucao[pos+1]] + matriz_distancias[solucao[pos-1]][solucao[pos+1]];
 	}
 	if (pos == tamanho_solucao-1) {
-		custo_solucao = custo_solucao - matriz_distancias[solucao[pos]][0] + matriz_distancias[solucao[pos-1]][0];
+		custo_solucao = custo_solucao - matriz_distancias[solucao[pos]][solucao[0]] + matriz_distancias[solucao[pos-1]][solucao[0]];
 	}
 
 	return custo_solucao;
@@ -371,7 +398,7 @@ int calcula_custo_troca_posicoes(int* solucao, int tamanho_solucao, int custo_so
 		custo_solucao = custo_solucao - matriz_distancias[solucao[posicao2]][solucao[posicao2+1]] + matriz_distancias[solucao[posicao1]][solucao[posicao2+1]];
 	}
 	if (posicao2 == tamanho_solucao -1) { // se for última, recalcula o preco da volta para a origem
-		custo_solucao = custo_solucao - matriz_distancias[solucao[posicao2]][0] + matriz_distancias[solucao[posicao1]][0];
+		custo_solucao = custo_solucao - matriz_distancias[solucao[posicao2]][solucao[0]] + matriz_distancias[solucao[posicao1]][solucao[0]];
 
 	}
 	
@@ -412,7 +439,7 @@ void contrucao_grasp(int* solucao, int n_vertices, int* custo_solucao, int* tama
 		
 		for (int i=0; i<n_vertices; i++) {
 			if (!vertices_na_solucao[i]) {
-				custo_candidatos[i] = calcula_custo_adicao_vertice_no_final(solucao, *tamanho_solucao, i, *custo_solucao, penalidades, matriz_distancias);
+				custo_candidatos[i] = calcula_custo_adicao_construcao(solucao, *tamanho_solucao, i, *custo_solucao, penalidades, matriz_distancias);
 			} else {
 				custo_candidatos[i] = -1;
 			}
@@ -433,6 +460,8 @@ void contrucao_grasp(int* solucao, int n_vertices, int* custo_solucao, int* tama
 		*custo_solucao = custo_candidatos[candidato_sorteado];
 		
 	}
+	
+	*custo_solucao = *custo_solucao + matriz_distancias[solucao[*tamanho_solucao-1]][solucao[0]]; //adicionando a volta pra origem
 	
 	if (testa_viabilidade(solucao, *tamanho_solucao, premios, min_premios)) {
 		printf("Solucao viável!\n");
@@ -477,20 +506,12 @@ void vnd_busca4(int* solucao, int* tamanho_solucao, int* custo_solucao, int n_ve
 	int vertices_fora[n_vertices_fora], prox_pos = 0, posicao_adicao, pos_vertice_adicionar, melhor_pos = -1, melhor_vertice = -1, melhor_custo = INF, temp;
 	
 	for (int i = 0; i<n_vertices; i++) {
-		printf("vertice %d na solucao? %d\n", i, vertices_na_solucao[i]);
 		if (vertices_na_solucao[i] == 0) {
-			printf("add no vetorrrr\n");
 			vertices_fora[prox_pos] = i;
 			prox_pos++;
 		}
 	}
 	
-	printf("n_vertices_fora: %d\nvertices fora:\n", n_vertices_fora);
-	for (int i=0; i<n_vertices_fora; i++) {
-		printf("%d ", vertices_fora[i]);
-	}
-	
-	printf("passou\n");
 	for (int i = 0; i<n_vertices; i++) {
 		posicao_adicao = gera_numero_aleatorio_entre(1, *tamanho_solucao);
 		pos_vertice_adicionar = gera_numero_aleatorio_entre(0, n_vertices_fora);
@@ -550,37 +571,55 @@ int main(int argc, const char * argv[]) {
 	//construção GRASP
 	contrucao_grasp(solucao, n_vertices, &custo_solucao, &tamanho_solucao, vertices_na_solucao, matriz_distancias, premios, min_premios, penalidades, somatorio_penalidades);
 	
+	imprime_vetor(solucao, tamanho_solucao, "apos construcao:");
+	
 	printf("custo apos construcao: %d\n", custo_solucao);
 	
-	vnd_busca1(solucao, &custo_solucao, &tamanho_solucao, vertices_na_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias);
-	imprime_vetor(solucao, tamanho_solucao, "vetor apois bl1");
-	printf("custo apos bl1 %d\n", custo_solucao);
+	//vnd_busca1(solucao, &custo_solucao, &tamanho_solucao, vertices_na_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias);
 	
 	//vnd_busca2(solucao, &tamanho_solucao, &custo_solucao, n_vertices, vertices_na_solucao, penalidades, matriz_distancias);
 	
 	//vnd_busca3(solucao, &custo_solucao, &tamanho_solucao, n_vertices, penalidades, somatorio_penalidades, matriz_distancias);
 	
-	vnd_busca4(solucao, &tamanho_solucao, &custo_solucao, n_vertices, vertices_na_solucao, penalidades, premios, matriz_distancias);
+	//vnd_busca4(solucao, &tamanho_solucao, &custo_solucao, n_vertices, vertices_na_solucao, penalidades, premios, matriz_distancias);
 	
-	imprime_vetor(solucao, tamanho_solucao, "apos busca local");
+	//vnd_busca5(solucao, &tamanho_solucao, n_vertices, &custo_solucao, vertices_na_solucao, penalidades, premios, min_premios, matriz_distancias);
 
 	printf("custo solucao: %d\nconfirmando custo: %d\n", custo_solucao, calcula_custo_solucao(solucao, tamanho_solucao, somatorio_penalidades, n_vertices, penalidades, matriz_distancias));
 	
 	//VND
-	/*
+	
 	int l =  0, l_max = N_VIZINHANCAS;
 	while (l < l_max) {
 		switch (l) {
 			case 0:
+				printf("\n\n*********** BUSCA LOCAL 1 (remove enquanto melhora)\n");
+				vnd_busca1(solucao, &custo_solucao, &tamanho_solucao, vertices_na_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias);
+				l++;
 				break;
-				
-			default:
-    break;
+			case 1:
+				printf("\n\n*********** BUSCA LOCAL 2 (add enquanto melhora)\n");
+				vnd_busca2(solucao, &tamanho_solucao, &custo_solucao, n_vertices, vertices_na_solucao, penalidades, matriz_distancias);
+				l++;
+				break;
+			case 2:
+				printf("\n\n*********** BUSCA LOCAL 2 (troca 2-2)\n");
+				vnd_busca3(solucao, &custo_solucao, &tamanho_solucao, n_vertices, penalidades, somatorio_penalidades, matriz_distancias);
+				l++;
+				break;
+			case 3:
+				printf("\n\n*********** BUSCA LOCAL 4 (add aleatório)\n");
+				vnd_busca4(solucao, &tamanho_solucao, &custo_solucao, n_vertices, vertices_na_solucao, penalidades, premios, matriz_distancias);
+				l++;
+				break;
+			case 4:
+				printf("\n\n*********** BUSCA LOCAL 5 (remove aleatório)\n");
+				vnd_busca5(solucao, &tamanho_solucao, n_vertices, &custo_solucao, vertices_na_solucao, penalidades, premios, min_premios, matriz_distancias);
+				l++;
+				break;
 		}
 	}
-	*/
-	
-	
+
 	
 	//VNS
 	
@@ -616,42 +655,11 @@ int main(int argc, const char * argv[]) {
 	}
 	*/
 
-	imprime_vetor(solucao, tamanho_solucao, "solucao:");
-	printf("\ncusto final: %d\n", custo_solucao);
+	imprime_vetor(solucao, tamanho_solucao, "solucao apos vnd:");
+	printf("\ncusto final com vnd: %d\n", custo_solucao);
 	
-	printf("\n Confirmando cálculo do custo: %d\n", calcula_custo_solucao(solucao, tamanho_solucao, somatorio_penalidades, n_vertices, penalidades, matriz_distancias));
+	printf("\n Confirmando cálculo do custo: %d\n", calcula_custo_solucao_sem_volta(solucao, tamanho_solucao, somatorio_penalidades, n_vertices, penalidades, matriz_distancias));
 	
-	/*vnd_busca1(solucao, &custo_solucao, &tamanho_solucao, vertices_na_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias);
-	imprime_vetor(solucao, tamanho_solucao, "APÓS BL1:\n");
-	
-	printf("CUSTO SOLUCAO APOS BL1: %d\n Confirmando custo: %d\n", custo_solucao, calcula_custo_solucao(solucao, tamanho_solucao, somatorio_penalidades, n_vertices, penalidades, matriz_distancias));
-	*/
-	 
-	/*
-	while (remove_vertice_menor_beneficio(solucao, &custo_solucao, &tamanho_solucao, vertices_na_solucao, n_vertices, premios, min_premios, penalidades, matriz_distancias)){
-		imprime_vetor(solucao, tamanho_solucao, "vetor:");
-		printf("custo apos remocao: %d\n", custo_solucao);
-	};
-	
-	imprime_vetor(solucao, tamanho_solucao, "melhor solucao viável");
-	
-	printf("\ntamanho_solucao: %d\ncusto depois de remover: %d\n", tamanho_solucao, custo_solucao);
-	
-	printf("confirmando custo: %d\n", calcula_custo_solucao(solucao, tamanho_solucao, somatorio_penalidades, n_vertices, penalidades, matriz_distancias));
-	
-	adiciona_vertice_melhor_beneficio(solucao, &tamanho_solucao, &custo_solucao, n_vertices, vertices_na_solucao, penalidades, matriz_distancias);
-	
-	imprime_vetor(solucao, tamanho_solucao, "Solucao após inserir um vértice de volta");
-	
-	printf("tamanho: %d\ncusto solucao: %d\n confirmando custo solucao: %d\n", tamanho_solucao, custo_solucao, calcula_custo_solucao(solucao, tamanho_solucao, somatorio_penalidades, n_vertices, penalidades, matriz_distancias));
-	*/
-	
-	
-	/*
-	troca_duas_posicoes(solucao, tamanho_solucao, &temp, n_vertices, penalidades, somatorio_penalidades, matriz_distancias);
-	imprime_vetor(solucao, tamanho_solucao, "Depois de trocar as posicoes");
-	printf("Confirmando o calculo do custo: %d\n", calcula_custo_solucao(solucao, tamanho_solucao, somatorio_penalidades, n_vertices, penalidades, matriz_distancias));
-	*/
 	//liberando matriz de distancias da memória
 	for (i=0; i<n_vertices; i++) {
 		free(matriz_distancias[i]);
